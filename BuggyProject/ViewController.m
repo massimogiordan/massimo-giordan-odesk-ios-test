@@ -7,6 +7,8 @@
 #import "ViewController.h"
 #import "SomeClass.h"
 #import "CoreDataHelpers.h"
+#import "ModelsEntity.h"
+#import "OwnerEntity.h"
 
 @interface ViewController ()
 
@@ -40,7 +42,7 @@
 }
 
 - (IBAction)secondBug:(id)sender {
-	NSInteger x = 123;
+	NSInteger x = 124;
 	void (^printX)() = ^() {
 		NSLog(@"%i", x);
 	};
@@ -55,22 +57,51 @@
 }
 
 - (IBAction)fourthBug:(id)sender {
-	static NSInteger count = 1;
-	if (count>1) {
-		[CoreDataHelpers cleanData];
+    NSArray *models = [CoreDataHelpers arrayForFetchRequestWithName:@"AllModels"];
+    
+    // If there is a model into db
+	if (models.count > 0) {
+        // Clear db
+        [CoreDataHelpers cleanData];
 	}
 	
+    // Fill the db
 	[CoreDataHelpers fillUnsortedData];
-	NSArray *models = [CoreDataHelpers arrayForFetchRequestWithName:@"AllModels"];
+    
+	models = [CoreDataHelpers arrayForFetchRequestWithName:@"AllModels"];
 	NSLog(@"%@", models);
-	
-	count++;
 }
 
 - (IBAction)fifthBug:(id)sender {
 	[CoreDataHelpers fillUnsortedData];
-	NSArray *models = [CoreDataHelpers arrayForFetchRequestWithName:@"AllModels"];
-	NSLog(@"%@", models);
+    NSArray *models = [CoreDataHelpers arrayForFetchRequestWithName:@"AllModels"];
+
+    NSLog(@"*******SOLUTION 1*******");
+    // Sort the models by owner name
+    NSArray *sortedModels = [models sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
+        ModelsEntity *e1 = (ModelsEntity*)obj1;
+        ModelsEntity *e2 = (ModelsEntity*)obj2;
+        
+        return [e1.owner.ownerName compare:e2.owner.ownerName];
+    }];
+    // Invert print of owner name and model name
+    for (ModelsEntity *model in sortedModels)
+    {
+        NSLog(@"%@ %@",model.owner.ownerName,model.modelName);
+    }
+    
+    NSLog(@"*******SOLUTION 2*******");
+    NSFetchRequest *request = [[CoreDataHelpers fetchRequestWithName:@"AllModels"] copy];
+    NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"owner.ownerName" ascending:YES];
+    [request setSortDescriptors:@[sortDescriptor]];
+    NSManagedObjectContext *context = [CoreDataHelpers currentContext];
+	NSError *error = nil;
+	NSArray *result = [context executeFetchRequest:request error:&error];
+    // Invert print of owner name and model name
+    for (ModelsEntity *model in result)
+    {
+        NSLog(@"%@ %@",model.owner.ownerName,model.modelName);
+    }
 }
 
 @end
